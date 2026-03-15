@@ -2,18 +2,18 @@ import RPi.GPIO as GPIO
 import time
 from bluepy.btle import Scanner, DefaultDelegate
 
-SYNC_PIN = 17
+SYNC_PIN = 17  #GPIO pin
 
 TX_POWER = -59
 N = 2.0
 D_AB = 0.50   # distance between Pi A and Pi B in metres
 
 # change to "track" later, once done default change back if needed
-#MODE = "discovery"
-MODE = "track"
+MODE = "discovery"
+#MODE = "track"
 
-#TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-TARGET_MAC = "7c:f4:f6:88:b9:3c"
+TARGET_MAC = "aa:bb:cc:dd:ee:ff"
+#TARGET_MAC = "7c:f4:f6:88:b9:3c"
 
 
 def rssi_to_distance(rssi):
@@ -49,7 +49,11 @@ try:
         if MODE == "discovery":
             if len(devices) > 0:
                 print("Pi A | Discovery results:")
-                for dev in devices:
+
+                # sort devices by RSSI (strongest first)
+                sorted_devices = sorted(devices, key=lambda d: d.rssi, reverse=True)
+
+                for dev in sorted_devices:
                     print("  Device: %s | RSSI: %d dB" % (dev.addr, dev.rssi))
             else:
                 print("Pi A | No BLE device detected in this scan window.")
