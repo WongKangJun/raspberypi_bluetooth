@@ -6,16 +6,14 @@ SYNC_PIN = 17
 
 TX_POWER = -59
 N = 2.0
+D_AB = 0.50   # distance between Pi A and Pi B in metres
 
-# change to "track" later, once done default back to "discovery"
-MODE = "discovery"   
-#MODE= "track"
+# change to "track" later, once done default back to discovery if needed
+#MODE = "discovery"
+MODE = "track"
 
-#TARGET_MAC = "09:f6:70:f0:d2:32" 
-TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-
-# replace real MAC address when using track mode
-# TARGET_MAC= "40:23:43:d3:36:82" , once done change back to "aa:bb:cc:dd:ee:ff"  
+#TARGET_MAC = "aa:bb:cc:dd:ee:ff"
+TARGET_MAC = "7c:f4:f6:88:b9:3c"
 
 
 def rssi_to_distance(rssi):
@@ -68,12 +66,13 @@ try:
 
             if chosen_device is not None:
                 rssi_samples.append(chosen_device.rssi)
+
                 avg_rssi = sum(rssi_samples) / len(rssi_samples)
-                est_distance = rssi_to_distance(avg_rssi)
+                dXB = rssi_to_distance(avg_rssi)
 
                 print(
-                    "Pi B | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | Est distance: %.2f m"
-                    % (chosen_device.addr, chosen_device.rssi, avg_rssi, est_distance)
+                    "Pi B | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | dXB (Pi B->Device): %.2f m | dAB (Pi A <-> Pi B): %.2f m"
+                    % (chosen_device.addr, chosen_device.rssi, avg_rssi, dXB, D_AB)
                 )
             else:
                 print("Pi B | Target MAC not detected in this scan window.")
