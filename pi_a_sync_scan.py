@@ -8,19 +8,46 @@ TX_POWER = -59
 N = 2.0
 D_AB = 0.50
 
-#MODE = "discovery"
 MODE = "track"
+#MODE = "discovery"
 
+TARGET_MAC = "33:29:eb:ba:e4:5d"
 #TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-TARGET_MAC = "09:0d:9c:b4:fc:9b"
 
-RSSI_WINDOW_SIZE = 3
+RSSI_WINDOW_SIZE = 5
 STABILITY_THRESHOLD = 0.05
 CONFIRM_COUNT = 2
 
 
 def rssi_to_distance(rssi):
     return 10 ** ((TX_POWER - rssi) / (10 * N))
+
+
+def get_confidence_info(rssi_samples):
+    if len(rssi_samples) < 3:
+        return 50, "Warming up"
+
+    sorted_samples = sorted(rssi_samples)
+
+    # Remove one extreme low and one extreme high sample
+    # so one noisy RSSI reading does not crash confidence
+    if len(sorted_samples) >= 5:
+        filtered_samples = sorted_samples[1:-1]
+    else:
+        filtered_samples = sorted_samples
+
+    spread = max(filtered_samples) - min(filtered_samples)
+
+    confidence_percent = max(40, min(100, int(100 - (spread * 10))))
+
+    if confidence_percent >= 75:
+        confidence_label = "High"
+    elif confidence_percent >= 45:
+        confidence_label = "Medium"
+    else:
+        confidence_label = "Low"
+
+    return confidence_percent, confidence_label
 
 
 class ScanDelegate(DefaultDelegate):
@@ -92,6 +119,8 @@ try:
                 avg_rssi = sum(rssi_samples) / len(rssi_samples)
                 current_distance = rssi_to_distance(avg_rssi)
 
+                confidence_percent, confidence_label = get_confidence_info(rssi_samples)
+
                 if reference_distance is None:
                     reference_distance = current_distance
                     final_state = "First reading"
@@ -114,14 +143,16 @@ try:
 
                 print(
                     "Pi A | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | "
-                    "dXA: %.2f m | dAB: %.2f m | Status: %s"
+                    "dXA: %.2f m | dAB: %.2f m | Status: %s | Confidence: %s (%d%%)"
                     % (
                         chosen_device.addr,
                         chosen_device.rssi,
                         avg_rssi,
                         current_distance,
                         D_AB,
-                        final_state
+                        final_state,
+                        confidence_label,
+                        confidence_percent
                     )
                 )
             else:
