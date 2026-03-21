@@ -8,11 +8,11 @@ TX_POWER = -59
 N = 2.0
 D_AB = 0.50
 
-MODE = "track"
 #MODE = "discovery"
+MODE = "track"
 
-TARGET_MAC = "33:29:eb:ba:e4:5d"
 #TARGET_MAC = "aa:bb:cc:dd:ee:ff"
+TARGET_MAC = "03:b2:85:5b:91:5a"
 
 RSSI_WINDOW_SIZE = 5
 STABILITY_THRESHOLD = 0.15
@@ -22,6 +22,18 @@ MOVEMENT_COOLDOWN = 1
 def rssi_to_distance(rssi):
     return 10 ** ((TX_POWER - rssi) / (10 * N))
 
+def get_filtered_rssi(rssi_samples):
+    if len(rssi_samples) < 3:
+        return sum(rssi_samples) / len(rssi_samples)
+
+    sorted_samples = sorted(rssi_samples)
+
+    if len(sorted_samples) >= 5:
+        filtered_samples = sorted_samples[1:-1]
+    else:
+        filtered_samples = sorted_samples
+
+    return sum(filtered_samples) / len(filtered_samples)
 
 def get_confidence_info(rssi_samples):
     if len(rssi_samples) < 3:
@@ -118,7 +130,7 @@ try:
                 if len(rssi_samples) > RSSI_WINDOW_SIZE:
                     rssi_samples.pop(0)
 
-                avg_rssi = sum(rssi_samples) / len(rssi_samples)
+                avg_rssi = get_filtered_rssi(rssi_samples)
                 current_distance = rssi_to_distance(avg_rssi)
 
                 confidence_percent, confidence_label = get_confidence_info(rssi_samples)
