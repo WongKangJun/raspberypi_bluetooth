@@ -2,18 +2,21 @@ import RPi.GPIO as GPIO
 import time
 from bluepy.btle import Scanner, DefaultDelegate
 
-SYNC_PIN = 17  #GPIO pin
+SYNC_PIN = 17
 
 TX_POWER = -59
 N = 2.0
-D_AB = 0.50   # distance between Pi A and Pi B in metres
+D_AB = 0.50
 
-# change to "track" later, once done default change back if needed
-MODE = "discovery"
-#MODE = "track"
+#MODE = "discovery"
+MODE = "track"
 
-TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-#TARGET_MAC = "7c:f4:f6:88:b9:3c"
+#TARGET_MAC = "aa:bb:cc:dd:ee:ff"
+TARGET_MAC = "09:0d:9c:b4:fc:9b"
+
+RSSI_WINDOW_SIZE = 3
+STABILITY_THRESHOLD = 0.05
+CONFIRM_COUNT = 2
 
 
 def rssi_to_distance(rssi):
@@ -23,6 +26,17 @@ def rssi_to_distance(rssi):
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
         DefaultDelegate.__init__(self)
+
+
+def decide_direction(current_distance, reference_distance, threshold):
+    difference = current_distance - reference_distance
+
+    if abs(difference) <= threshold:
+        return "Stationary"
+    elif difference < 0:
+        return "Moving closer to Pi A"
+    else:
+        return "Moving away from Pi A"
 
 
 GPIO.setmode(GPIO.BCM)
@@ -42,6 +56,11 @@ print("Press Ctrl+C to stop.\n")
 scanner = Scanner().withDelegate(ScanDelegate())
 rssi_samples = []
 
+reference_distance = None
+candidate_state = None
+candidate_count = 0
+final_state = "Waiting for enough data"
+
 try:
     while True:
         devices = scanner.scan(1.0)
@@ -49,8 +68,6 @@ try:
         if MODE == "discovery":
             if len(devices) > 0:
                 print("Pi A | Discovery results:")
-
-                # sort devices by RSSI (strongest first)
                 sorted_devices = sorted(devices, key=lambda d: d.rssi, reverse=True)
 
                 for dev in sorted_devices:
@@ -69,12 +86,43 @@ try:
             if chosen_device is not None:
                 rssi_samples.append(chosen_device.rssi)
 
+                if len(rssi_samples) > RSSI_WINDOW_SIZE:
+                    rssi_samples.pop(0)
+
                 avg_rssi = sum(rssi_samples) / len(rssi_samples)
-                dXA = rssi_to_distance(avg_rssi)
+                current_distance = rssi_to_distance(avg_rssi)
+
+                if reference_distance is None:
+                    reference_distance = current_distance
+                    final_state = "First reading"
+                else:
+                    new_state = decide_direction(
+                        current_distance,
+                        reference_distance,
+                        STABILITY_THRESHOLD
+                    )
+
+                    if new_state == candidate_state:
+                        candidate_count += 1
+                    else:
+                        candidate_state = new_state
+                        candidate_count = 1
+
+                    if candidate_count >= CONFIRM_COUNT:
+                        final_state = candidate_state
+                        reference_distance = current_distance
 
                 print(
-                    "Pi A | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | dXA (Pi A->Device): %.2f m | dAB (Pi A <-> Pi B): %.2f m"
-                    % (chosen_device.addr, chosen_device.rssi, avg_rssi, dXA, D_AB)
+                    "Pi A | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | "
+                    "dXA: %.2f m | dAB: %.2f m | Status: %s"
+                    % (
+                        chosen_device.addr,
+                        chosen_device.rssi,
+                        avg_rssi,
+                        current_distance,
+                        D_AB,
+                        final_state
+                    )
                 )
             else:
                 print("Pi A | Target MAC not detected in this scan window.")
