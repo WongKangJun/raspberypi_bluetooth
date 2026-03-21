@@ -2,25 +2,52 @@ import RPi.GPIO as GPIO
 import time
 from bluepy.btle import Scanner, DefaultDelegate
 
-SYNC_PIN = 17   # GPIO pin
+SYNC_PIN = 17
 
 TX_POWER = -59
 N = 2.0
-D_AB = 0.50   # distance between Pi A and Pi B in metres
+D_AB = 0.50
 
-#MODE = "track"
+MODE = "track"
 #MODE = "discovery"
 
+TARGET_MAC = "33:29:eb:ba:e4:5d"
 #TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-TARGET_MAC = "09:0d:9c:b4:fc:9b"
 
 RSSI_WINDOW_SIZE = 5
-STABILITY_THRESHOLD = 0.15   # metres
-MOVEMENT_COOLDOWN = 1        # number of loops before updating state
+STABILITY_THRESHOLD = 0.15
+MOVEMENT_COOLDOWN = 1
 
 
 def rssi_to_distance(rssi):
     return 10 ** ((TX_POWER - rssi) / (10 * N))
+
+
+def get_confidence_info(rssi_samples):
+    if len(rssi_samples) < 3:
+        return 50, "Warming up"
+
+    sorted_samples = sorted(rssi_samples)
+
+    # Remove one extreme low and one extreme high sample
+    # so one noisy RSSI reading does not crash confidence
+    if len(sorted_samples) >= 5:
+        filtered_samples = sorted_samples[1:-1]
+    else:
+        filtered_samples = sorted_samples
+
+    spread = max(filtered_samples) - min(filtered_samples)
+
+    confidence_percent = max(40, min(100, int(100 - (spread * 10))))
+
+    if confidence_percent >= 75:
+        confidence_label = "High"
+    elif confidence_percent >= 45:
+        confidence_label = "Medium"
+    else:
+        confidence_label = "Low"
+
+    return confidence_percent, confidence_label
 
 
 class ScanDelegate(DefaultDelegate):
@@ -61,6 +88,7 @@ scanner = Scanner().withDelegate(ScanDelegate())
 rssi_samples = []
 previous_distance = None
 stable_counter = 0
+final_state = "Waiting for enough data"
 
 try:
     while True:
@@ -93,6 +121,8 @@ try:
                 avg_rssi = sum(rssi_samples) / len(rssi_samples)
                 current_distance = rssi_to_distance(avg_rssi)
 
+                confidence_percent, confidence_label = get_confidence_info(rssi_samples)
+
                 movement_state = classify_movement(
                     previous_distance,
                     current_distance,
@@ -111,14 +141,16 @@ try:
 
                 print(
                     "Pi B | Device: %s | Latest RSSI: %d dB | Avg RSSI: %.2f dB | "
-                    "dXB: %.2f m | dAB: %.2f m | Status: %s"
+                    "dXB: %.2f m | dAB: %.2f m | Status: %s | Confidence: %s (%d%%)"
                     % (
                         chosen_device.addr,
                         chosen_device.rssi,
                         avg_rssi,
                         current_distance,
                         D_AB,
-                        final_state
+                        final_state,
+                        confidence_label,
+                        confidence_percent
                     )
                 )
 
