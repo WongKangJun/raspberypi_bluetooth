@@ -136,7 +136,7 @@ try:
 
                 if reference_distance is None:
                     reference_distance = current_distance
-                    final_state = "First reading"
+                    final_state = "Initalizing"
                 else:
                     new_state = decide_direction(
                         current_distance,
