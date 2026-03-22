@@ -69,7 +69,7 @@ class ScanDelegate(DefaultDelegate):
 
 def classify_movement(previous_distance, current_distance, threshold):
     if previous_distance is None:
-        return "First reading"
+        return "Initalizing"
 
     difference = current_distance - previous_distance
 
