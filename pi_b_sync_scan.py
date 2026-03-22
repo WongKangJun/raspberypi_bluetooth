@@ -12,7 +12,7 @@ D_AB = 0.50
 MODE = "track"
 
 #TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-TARGET_MAC = "03:b2:85:5b:91:5a"
+TARGET_MAC = "36:56:e5:70:09:eb"
 
 RSSI_WINDOW_SIZE = 5
 STABILITY_THRESHOLD = 0.15
