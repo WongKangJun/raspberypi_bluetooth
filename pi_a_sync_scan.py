@@ -9,11 +9,11 @@ N = 2.0
 D_AB = 0.50
 
 
-#MODE = "discovery"
-MODE = "track"
+MODE = "discovery"
+#MODE = "track"
 
-#TARGET_MAC = "aa:bb:cc:dd:ee:ff"
-TARGET_MAC = "03:b2:85:5b:91:5a"
+TARGET_MAC = "aa:bb:cc:dd:ee:ff"
+#TARGET_MAC = "03:b2:85:5b:91:5a"
 
 RSSI_WINDOW_SIZE = 5
 STABILITY_THRESHOLD = 0.18
